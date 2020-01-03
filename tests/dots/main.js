@@ -50,9 +50,8 @@ window.onload = () => {
             vy: Lerp(0.02, 0.1, Math.random()) * (Math.random() < 0.5 ? -1 : 1)
         });
     }
-    Resize();
     ctx = canv.getContext("2d");
-    ctx.lineWidth = 3;
+    Resize();
     requestAnimationFrame(Loop);
 };
 
@@ -103,7 +102,7 @@ function Loop(time) {
             ctx.beginPath();
             ctx.arc(dots[i].x * canvasSizes.w, dots[i].y * canvasSizes.h, size + canvasSizes.avg * 0.003, 0, 2 * Math.PI, true);
             ctx.stroke();
-            ctx.lineWidth = 3;
+            ctx.lineWidth = dotSize * canvasSizes.avg * 0.5;
         }
 
         if (mousePos !== undefined) {
@@ -162,6 +161,7 @@ function Resize() {
         max: Math.max(canv.width, canv.height),
         avg: (Math.min(canv.width, canv.height) + Math.max(canv.width, canv.height)) / 2
     };
+    ctx.lineWidth = dotSize * canvasSizes.avg * 0.5;
 }
 
 document.body.onresize = Resize;

@@ -3,11 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <title>Test</title>
-    <meta content="0;tests/dots/index.html" http-equiv="refresh">
+    <link href="main.css" rel="stylesheet"/>
+    <script src="main.js"></script>
 </head>
 <body>
-<iframe allowfullscreen frameborder="0" src="">
-    <pre>:( iframe not supported</pre>
-</iframe>
+<div class="tab">
+    <button class="tablinks" onclick="openTest(event, `tests/dots/`)">Dots</button>
+    <button class="tablinks" onclick="openTest(event, `tests/icon/`)">Icon</button>
+    <button class="tablinks" onclick="openTest(event, `tests/snakeIcon/`)">SnakeIcon</button>
+</div>
+<div class="tabcontent" style="display: block">
+    <iframe id="iframe" allowfullscreen frameborder="0" src="">
+        <pre>:( iframe not supported</pre>
+    </iframe>
+</div>
 </body>
 </html>
