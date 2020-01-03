@@ -11,6 +11,7 @@ let dotDistance = 0.15;
 let dotSpeed = 1;
 let dotSize = 0.01;
 let gravity = 0; //0.0067;
+let showGravityCenter = false;
 let gravityRadius = 0;
 let colorSpeed = 0.0001;
 let sizeBounceSpeed = 0.001;
@@ -144,6 +145,27 @@ function Loop(time) {
                 dots[i].vy += (dots[a].y - dots[i].y) * f;
             }
         }
+    }
+
+    if (showGravityCenter) {
+        let cx = dots.reduce(function (sum, current) {
+            return sum + current.x;
+        }, 0) / dots.length;
+        let cy = dots.reduce(function (sum, current) {
+            return sum + current.y;
+        }, 0) / dots.length;
+
+        ctx.fillStyle = "#aaa";
+        ctx.strokeStyle = "#aaa";
+        ctx.beginPath();
+        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, dotSize * canvasSizes.avg, 0, 2 * Math.PI, true);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, dotSize * canvasSizes.avg * 1.5, 0, 2 * Math.PI, true);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, dotSize * canvasSizes.avg * 2.3, 0, 2 * Math.PI, true);
+        ctx.stroke();
     }
 
     lastUpd = time;
