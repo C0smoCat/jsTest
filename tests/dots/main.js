@@ -41,6 +41,8 @@ window.onload = () => {
         UpdateMousePos(e, false);
     }, false);
 
+    window.addEventListener("resize", Resize, false);
+
     for (let i = 0; i < dotsCount; i++) {
         dots.push({
             x: Lerp(0, 1, Math.random()),
@@ -163,8 +165,6 @@ function Resize() {
     };
     ctx.lineWidth = dotSize * canvasSizes.avg * 0.5;
 }
-
-document.body.onresize = Resize;
 
 function Lerp(a, b, t) {
     return a + (b - a) * t;
