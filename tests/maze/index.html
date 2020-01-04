@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple maze</title>
+    <link href="main.css" rel="stylesheet"/>
+    <script type="text/javascript" src="main.js"></script>
+</head>
+<body style="margin:0;">
+<div id="main" style="display: grid; grid-template-rows: 5vh 95vh;">
+            <pre id="btns"
+                 style="display: flex; color: aqua; font-size: 3vmin; margin: 0; user-select: none; background: indigo">
+                <div id="lbCoins" class="menuItem"></div>
+                <div id="lbPercent" class="menuItem"></div>
+                <div id="btnR" class="menuItem" onclick="VirtualClick('KeyR');">R<a> $20</a></div>
+                <div id="btnT" class="menuItem" onclick="VirtualClick('KeyT');">T<a> $5</a></div>
+                <div id="btnSpace" class="menuItem" onclick="VirtualClick('Space');">SPACE<a> $1</a></div>
+                <div id="btnE" class="menuItem" onclick="VirtualClick('KeyE');">E<a> speed</a></div>
+                <div id="btnZ" class="menuItem" onclick="VirtualClick('KeyZ');">Z<a> zoom</a></div>
+                <div id="btnQ" class="menuItem" onclick="VirtualClick('KeyQ');">Q<a> map</a></div>
+            </pre>
+    <canvas id="canvas">
+    </canvas>
+</div>
+</body>
+</html>

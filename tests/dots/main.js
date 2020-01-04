@@ -11,6 +11,7 @@ let dotDistance = 0.15;
 let dotSpeed = 1;
 let dotSize = 0.01;
 let gravity = 0; //0.0067;
+let showDotVelocity = false;
 let showGravityCenter = false;
 let gravityRadius = 0;
 let colorSpeed = 0.0001;
@@ -24,22 +25,28 @@ window.onload = () => {
 
     canv = document.getElementById("canvas");
     canv.addEventListener('touchstart', (e) => {
-        UpdateMousePos(e.touches[0], true);
+        e.preventDefault();
+        UpdateCursorPos(e.touches[0], true);
     }, false);
     canv.addEventListener('touchmove', (e) => {
-        UpdateMousePos(e.touches[0], undefined);
+        e.preventDefault();
+        UpdateCursorPos(e.touches[0], undefined);
     }, false);
     canv.addEventListener('touchend', (e) => {
-        UpdateMousePos(e.touches[0], false);
+        e.preventDefault();
+        UpdateCursorPos(e.touches[0], false);
     }, false);
     canv.addEventListener('mousedown', (e) => {
-        UpdateMousePos(e, true);
+        e.preventDefault();
+        UpdateCursorPos(e, true);
     }, false);
     canv.addEventListener('mousemove', (e) => {
-        UpdateMousePos(e, undefined);
+        e.preventDefault();
+        UpdateCursorPos(e, undefined);
     }, false);
     canv.addEventListener('mouseup', (e) => {
-        UpdateMousePos(e, false);
+        e.preventDefault();
+        UpdateCursorPos(e, false);
     }, false);
 
     window.addEventListener("resize", Resize, false);
@@ -58,7 +65,7 @@ window.onload = () => {
     requestAnimationFrame(Loop);
 };
 
-function UpdateMousePos(cursor, press) {
+function UpdateCursorPos(cursor, press) {
     if (press || (press === undefined && mousePos !== undefined)) {
         let box = canv.getBoundingClientRect();
         mousePos = {
@@ -135,6 +142,14 @@ function Loop(time) {
             }
         }
 
+        if (showDotVelocity) {
+            ctx.strokeStyle = `#aaa`;
+            ctx.beginPath();
+            ctx.moveTo(dots[i].x * canvasSizes.w, dots[i].y * canvasSizes.h);
+            ctx.lineTo((dots[i].x + dots[i].vx / 10) * canvasSizes.w, (dots[i].y + dots[i].vy / 10) * canvasSizes.h);
+            ctx.stroke();
+        }
+
         if (gravity > 0) {
             for (let a = 0; a < dots.length; a++) {
                 if (a === i) continue;
@@ -155,16 +170,17 @@ function Loop(time) {
             return sum + current.y;
         }, 0) / dots.length;
 
+        let graviSize = dotSize * canvasSizes.avg;
         ctx.fillStyle = "#aaa";
         ctx.strokeStyle = "#aaa";
         ctx.beginPath();
-        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, dotSize * canvasSizes.avg, 0, 2 * Math.PI, true);
+        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, graviSize, 0, 2 * Math.PI, true);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, dotSize * canvasSizes.avg * 1.5, 0, 2 * Math.PI, true);
+        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, graviSize * 1.5, 0, 2 * Math.PI, true);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, dotSize * canvasSizes.avg * 2.3, 0, 2 * Math.PI, true);
+        ctx.arc(cx * canvasSizes.w, cy * canvasSizes.h, graviSize * 2.3, 0, 2 * Math.PI, true);
         ctx.stroke();
     }
 
@@ -183,7 +199,7 @@ function Resize() {
         h,
         min: Math.min(canv.width, canv.height),
         max: Math.max(canv.width, canv.height),
-        avg: (Math.min(canv.width, canv.height) + Math.max(canv.width, canv.height)) / 2
+        avg: (canv.width + canv.height) / 2
     };
     ctx.lineWidth = dotSize * canvasSizes.avg * 0.5;
 }

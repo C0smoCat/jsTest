@@ -159,7 +159,6 @@ function GetPlanets(limit, maxSize) {
             size: size,
             speed: Rand(0, 1) === 0 ? RandFloat(3, 60) : -RandFloat(3, 60),
             orbit: RandFloat(maxSize * 2, maxSize * 3),
-            //div: p,
             childs: GetPlanets(limit - 1, size * 0.9),
             posHistory: []
         };
@@ -178,9 +177,8 @@ function Resize() {
         h,
         min: Math.min(canv.width, canv.height),
         max: Math.max(canv.width, canv.height),
-        avg: (Math.min(canv.width, canv.height) + Math.max(canv.width, canv.height)) / 2
+        avg: (canv.width + canv.height) / 2
     };
-    //ctx.lineWidth = dotSize * canvasSizes.avg * 0.5;
 }
 
 function RandArr(array) {

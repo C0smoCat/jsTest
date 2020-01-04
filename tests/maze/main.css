@@ -1,0 +1,17 @@
+.menuItem {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 12vw;
+    cursor: pointer;
+}
+
+.menuItem a {
+    font-size: 2vmin
+}
+
+canvas {
+    width: 100vw;
+    height: 95vh;
+}
+
