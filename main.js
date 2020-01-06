@@ -6,18 +6,25 @@ function openTest(evt, contentUrl) {
     let frame = document.getElementById("iframe");
     frame.src = contentUrl;
     frame.addEventListener("load", () => {
-        let a = frame.contentDocument.createElement("script");
-        a.innerHTML = `changeFavicon = (src) => {
-    let link = parent.document.createElement('link');
-    let oldLink = parent.document.getElementById('dynamic-favicon');
-    link.id = 'dynamic-favicon';
-    link.rel = 'shortcut icon';
-    link.href = src;
-    if (oldLink) {
-        parent.document.head.removeChild(oldLink);
-    }
-    parent.document.head.appendChild(link);}`;
-        frame.contentDocument.body.appendChild(a);
+        if (frame.contentWindow['OnKeyDown'] !== undefined) {
+            window.addEventListener("keydown", frame.contentWindow.OnKeyDown, false);
+        }
+        if (frame.contentWindow['OnKeyDown'] !== undefined) {
+            window.addEventListener("keyup", frame.contentWindow.OnKeyUp, false);
+        }
+        if (frame.contentWindow['changeFavicon'] !== undefined) {
+            frame.contentWindow.changeFavicon = (src) => {
+                let link = document.createElement('link');
+                let oldLink = document.getElementById('dynamic-favicon');
+                link.id = 'dynamic-favicon';
+                link.rel = 'shortcut icon';
+                link.href = src;
+                if (oldLink) {
+                    document.head.removeChild(oldLink);
+                }
+                document.head.appendChild(link);
+            }
+        }
     });
     evt.currentTarget.classList.add("active");
 }

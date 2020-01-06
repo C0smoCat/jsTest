@@ -11,7 +11,7 @@ let fruit;
 let snakeLength = 3;
 
 window.onload = () => {
-    document.body.addEventListener("keydown", onkeydown, false);
+    document.body.addEventListener("keydown", OnKeyDown, false);
     RandFruit();
     canv = document.getElementById("canvas");
     canv.width = 32;
@@ -22,7 +22,7 @@ window.onload = () => {
     setInterval(Loop, 300);
 };
 
-function onkeydown(key) {
+function OnKeyDown(key) {
     switch (key.code) {
         case "KeyW":
         case "ArrowUp":

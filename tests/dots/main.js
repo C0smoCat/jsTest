@@ -102,19 +102,6 @@ function Loop(time) {
         dots[i].x += dots[i].vx * deltaTime * dotSpeed;
         dots[i].y += dots[i].vy * deltaTime * dotSpeed;
 
-        ctx.strokeStyle = ctx.fillStyle = `hsla(${hue}, 90%, 90%, 1)`;
-
-        ctx.beginPath();
-        ctx.arc(dots[i].x * canvasSizes.w, dots[i].y * canvasSizes.h, size, 0, 2 * Math.PI, true);
-        ctx.fill();
-        if (outlines) {
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(dots[i].x * canvasSizes.w, dots[i].y * canvasSizes.h, size + canvasSizes.avg * 0.003, 0, 2 * Math.PI, true);
-            ctx.stroke();
-            ctx.lineWidth = dotSize * canvasSizes.avg * 0.5;
-        }
-
         if (mousePos !== undefined) {
             let mag = Math.hypot((dots[i].x - mousePos.x) * canvasSizes.w, (dots[i].y - mousePos.y) * canvasSizes.h) / canvasSizes.avg;
             if (mag <= mouseDistance) {
@@ -127,6 +114,19 @@ function Loop(time) {
                     dots[i].y += (dots[i].y - mousePos.y) / mag * UnLerp(mouseDistance, 0, mag) * deltaTime * dotSpeed;
                 }
             }
+        }
+
+        ctx.strokeStyle = ctx.fillStyle = `hsla(${hue}, 90%, 90%, 1)`;
+
+        ctx.beginPath();
+        ctx.arc(dots[i].x * canvasSizes.w, dots[i].y * canvasSizes.h, size, 0, 2 * Math.PI, true);
+        ctx.fill();
+        if (outlines) {
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(dots[i].x * canvasSizes.w, dots[i].y * canvasSizes.h, size + canvasSizes.avg * 0.003, 0, 2 * Math.PI, true);
+            ctx.stroke();
+            ctx.lineWidth = dotSize * canvasSizes.avg * 0.5;
         }
 
         if (dotDistance > 0) {

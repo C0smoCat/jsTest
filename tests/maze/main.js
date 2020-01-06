@@ -12,8 +12,8 @@ let colors = {
         (a, b) => `rgb(150,${a * 255},${(1 - b) * 255})`,
         (a, b) => `rgb(${(1 - a) * 255},${(1 - b) * 255},150)`
     ],
-    hiddenDanger: "#faa",
-    hiddenWall: "#aaa",
+    hiddenDanger: "#a55",
+    hiddenWall: "#555",
     godModeDanger: "#faf",
     godModeWall: "#aaf",
     player: "#ff0",
@@ -31,7 +31,11 @@ let player = {
     y: 3.5,
     speed: 5,
     vx: 0,
-    vy: 0
+    vy: 0,
+    spawn: {
+        x: 3.5,
+        y: 3.5
+    }
 };
 let scale = 10;
 let wScale;
@@ -43,46 +47,26 @@ let count = 0;
 let seened = 0;
 let zz = 0;
 let minimapMode = false;
-let mapW = 101;
-let mapH = 101;
-let truePath = [];
+let mapW = 201;
+let mapH = 201;
 let goal = undefined;
 let drawPath = false;
 let drawPathInterval = 1000;
 let coins = 0;
-let pathLength = 0;
 let cursorHold = false;
 let lbCoins;
 let lbPercent;
 let shopCosts = {
     extraLive: 50,
     flashpowerUp: 20,
-    pathLength: 5
+    pathLength: 5,
+    marker: 1,
+    markerReturn: -1
 };
-
-window.onkeydown = function (evt) {
-    switch (evt.code) {
-        case "ArrowLeft":
-        case "KeyA":
-            player.vx = Clamp(-1, 1, player.vx - 1);
-            break;
-        case "ArrowUp":
-        case "KeyW":
-            player.vy = Clamp(-1, 1, player.vy - 1);
-            break;
-        case "ArrowDown":
-        case "KeyS":
-            player.vy = Clamp(-1, 1, player.vy + 1);
-            break;
-        case "ArrowRight":
-        case "KeyD":
-            player.vx = Clamp(-1, 1, player.vx + 1);
-            break;
-    }
-};
-
-window.onkeyup = function (evt) {
-    VirtualClick(evt.code);
+let autoMarker = {
+    enable: false,
+    lastX: undefined,
+    lastY: undefined
 };
 
 function VirtualClick(btn) {
@@ -122,27 +106,58 @@ function VirtualClick(btn) {
             }
             break;
         case "KeyT":
-            if (coins >= shopCosts.pathLength) {
-                pathLength += 2;
-                coins -= shopCosts.pathLength;
-                UpdateCounters();
+            if (map !== undefined &&
+                player.x !== undefined &&
+                player.y !== undefined) {
+                let buyPath = (x, y) => {
+                    if (map !== undefined &&
+                        map[x] !== undefined &&
+                        map[x][y] !== undefined) {
+                        let bl = map[x][y];
+                        if (!bl.isWall && bl.toGoal !== undefined && coins >= shopCosts.pathLength) {
+                            if (bl.toGoalVisible) {
+                                buyPath(bl.toGoal.x, bl.toGoal.y);
+                            } else {
+                                bl.toGoalVisible = true;
+                                coins -= shopCosts.pathLength;
+                                UpdateCounters();
+                            }
+                        }
+                    }
+                };
+                buyPath(Math.floor(player.x / 2) * 2 + 1, Math.floor(player.y / 2) * 2 + 1);
             }
+            /*
+                        if (map !== undefined &&
+                            map[Math.floor(player.x)] !== undefined &&
+                            map[Math.floor(player.x)][Math.floor(player.y)] !== undefined &&
+                            player.x !== undefined &&
+                            player.y !== undefined) {
+                            let bl = map[Math.floor(player.x)][Math.floor(player.y)];
+                            if (!bl.isWall && bl.toGoal !== undefined && !bl.toGoalVisible && coins >= shopCosts.pathLength) {
+                                bl.toGoalVisible = true;
+                                coins -= shopCosts.pathLength;
+                                UpdateCounters();
+                            }
+                        }*/
             break;
         case "Space":
             if (map !== undefined &&
-                map[Math.floor(player.x)] !== undefined &&
-                map[Math.floor(player.x)][Math.floor(player.y)] !== undefined &&
                 player.x !== undefined &&
-                player.y !== undefined) {
+                player.y !== undefined &&
+                map[Math.floor(player.x)] !== undefined &&
+                map[Math.floor(player.x)][Math.floor(player.y)] !== undefined) {
                 let bl = map[Math.floor(player.x)][Math.floor(player.y)];
                 if (!bl.isWall && !bl.isDanger) {
                     if (bl.isSeen) {
-                        bl.isSeen = false;
-                        coins++;
-                        UpdateCounters();
-                    } else if (coins >= 1) {
+                        if (coins >= shopCosts.markerReturn) {
+                            bl.isSeen = false;
+                            coins -= shopCosts.markerReturn;
+                            UpdateCounters();
+                        }
+                    } else if (coins >= shopCosts.marker) {
                         bl.isSeen = true;
-                        coins--;
+                        coins -= shopCosts.marker;
                         UpdateCounters();
                     }
                 }
@@ -162,6 +177,8 @@ window.onload = function () {
     canv = document.getElementById("canvas");
     lbCoins = document.getElementById("lbCoins");
     lbPercent = document.getElementById("lbPercent");
+    window.addEventListener("keydown", OnKeyDown, false);
+    window.addEventListener("keyup", OnKeyUp, false);
     window.addEventListener("resize", Resize, false);
     canv.addEventListener('touchstart', (e) => {
         e.preventDefault();
@@ -173,7 +190,7 @@ window.onload = function () {
     }, false);
     canv.addEventListener('touchend', (e) => {
         e.preventDefault();
-        UpdateCursorPos(e.touches[0], false);
+        UpdateCursorPos(undefined, false);
     }, false);
     canv.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -185,22 +202,14 @@ window.onload = function () {
     }, false);
     canv.addEventListener('mouseup', (e) => {
         e.preventDefault();
-        UpdateCursorPos(e, false);
+        UpdateCursorPos(undefined, false);
     }, false);
     document.body.style.backgroundColor = colors.background;
 
-    map = GenMap(mapW, mapH, [], [], {x: 3, y: 3});
+    map = GenMap(mapW, mapH, [], [], {x: Math.floor(player.spawn.x), y: Math.floor(player.spawn.y)});
 
-    let t = [];
-    for (let x = 0; x < mapW; x++) {
-        t[x] = [];
-        for (let y = 0; y < mapH; y++) {
-            t[x][y] = !map[x][y].isWall;
-        }
-    }
-    truePath = Makeway([], 1, 1, t, goal);
-    truePath.push(goal.b);
-    t = undefined;
+    map = Makeway2(goal.x, goal.y, map, {x: Lerp(goal.x, goal.b.x, 2), y: Lerp(goal.y, goal.b.y, 2)});
+
     count = 0;
     for (let x = 0; x < mapW; x++) {
         for (let y = 0; y < mapH; y++) {
@@ -215,6 +224,31 @@ window.onload = function () {
     requestAnimationFrame(Loop);
 };
 
+function OnKeyDown(event) {
+    switch (event.code) {
+        case "ArrowLeft":
+        case "KeyA":
+            player.vx = Clamp(-1, 1, player.vx - 1);
+            break;
+        case "ArrowUp":
+        case "KeyW":
+            player.vy = Clamp(-1, 1, player.vy - 1);
+            break;
+        case "ArrowDown":
+        case "KeyS":
+            player.vy = Clamp(-1, 1, player.vy + 1);
+            break;
+        case "ArrowRight":
+        case "KeyD":
+            player.vx = Clamp(-1, 1, player.vx + 1);
+            break;
+    }
+}
+
+function OnKeyUp(event) {
+    VirtualClick(event.code);
+}
+
 function MovePlayer(deltaTime) {
     let nx = player.x + Clamp(-0.3, 0.3, player.vx * player.speed * deltaTime / 1000);
     let ny = player.y + Clamp(-0.3, 0.3, player.vy * player.speed * deltaTime / 1000);
@@ -228,9 +262,10 @@ function MovePlayer(deltaTime) {
             if (coins >= shopCosts.extraLive) {
                 coins -= shopCosts.extraLive;
                 UpdateCounters();
+                Vibrate(60);
             } else {
-                player.x = 1.5;
-                player.y = 1.5;
+                player.x = player.spawn.x;
+                player.y = player.spawn.y;
                 let thanos = [];
                 for (let y = 0; y < mapH; y++) {
                     for (let x = 0; x < mapW; x++) {
@@ -286,39 +321,30 @@ function DrawMinimap(time) {
                 let xx = Math.ceil(zz * x + ox);
                 let yy = Math.ceil(zz * y + oy);
                 ctx.fillRect(xx, yy, Math.ceil(zz), Math.ceil(zz));
-            } else if (map[x][y].isSeen) {
-                ctx.fillStyle = colors.marker;
-                let xx = zz * (x + 0.2) + ox;
-                let yy = zz * (y + 0.2) + oy;
-                ctx.fillRect(xx, yy, zz * 0.6, zz * 0.6);
-            } else if ((godMode ? true : mag <= flashpower) && !map[x][y].isWall && map[x][y].isDanger) {
-                if (Math.floor(player.x) === x && Math.floor(player.y) === y) {
-                    map[x][y].isDanger = false;
-                    coins++;
-                    UpdateCounters();
+            } else {
+                if (map[x][y].isSeen) {
+                    ctx.fillStyle = colors.marker;
+                    let xx = zz * (x + 0.2) + ox;
+                    let yy = zz * (y + 0.2) + oy;
+                    ctx.fillRect(xx, yy, zz * 0.6, zz * 0.6);
+                } else if ((godMode ? true : mag <= flashpower) && !map[x][y].isWall && map[x][y].isDanger) {
+                    if (Math.floor(player.x) === x && Math.floor(player.y) === y) {
+                        map[x][y].isDanger = false;
+                        coins++;
+                        UpdateCounters();
+                    }
+                    ctx.fillStyle = colors.coin;
+                    let xx = zz * (x + 0.3) + ox;
+                    let yy = zz * (y + 0.3) + oy;
+                    ctx.fillRect(xx, yy, zz * 0.4, zz * 0.4);
                 }
-                ctx.fillStyle = colors.coin;
-                let xx = zz * (x + 0.3) + ox;
-                let yy = zz * (y + 0.3) + oy;
-                ctx.fillRect(xx, yy, zz * 0.4, zz * 0.4);
+                if ((map[x][y].toGoalVisible || godMode) && map[x][y].toGoal !== undefined) {
+                    ctx.fillStyle = colors.path;
+                    let xx = zz * (Lerp(x, map[x][y].toGoal.x, time / drawPathInterval % 1) + 0.35);
+                    let yy = zz * (Lerp(y, map[x][y].toGoal.y, time / drawPathInterval % 1) + 0.35);
+                    ctx.fillRect(xx, yy, zz * 0.3, zz * 0.3);
+                }
             }
-        }
-    }
-    ctx.fillStyle = colors.path;
-    if (drawPath) {
-        for (let i = 0; i < truePath.length - 1; i++) {
-            let mag = godMode ? 0 : Math.sqrt((player.x - 0.5 - truePath[i].x) ** 2 + (player.y - 0.5 - truePath[i].y) ** 2);
-            if (mag < flashpower) {
-                let xx = zz * (Lerp(truePath[i].x, truePath[i + 1].x, time / drawPathInterval % 1) + 0.35);
-                let yy = zz * (Lerp(truePath[i].y, truePath[i + 1].y, time / drawPathInterval % 1) + 0.35);
-                ctx.fillRect(xx, yy, zz * 0.3, zz * 0.3);
-            }
-        }
-    } else {
-        for (let i = 0; i < Math.min(pathLength, truePath.length - 1); i++) {
-            let xx = zz * (Lerp(truePath[i].x, truePath[i + 1].x, time / drawPathInterval % 1) + 0.35);
-            let yy = zz * (Lerp(truePath[i].y, truePath[i + 1].y, time / drawPathInterval % 1) + 0.35);
-            ctx.fillRect(xx, yy, zz * 0.3, zz * 0.3);
         }
     }
 }
@@ -350,27 +376,40 @@ function DrawNormal(time) {
                 let yy = Math.ceil(canv.height / 2 + zz * (y - player.y));
                 let ss = Math.ceil(zz);
                 ctx.fillRect(xx, yy, ss, ss);
-            } else if (map[x][y].isSeen) {
-                ctx.fillStyle = colors.marker;
-                let xx = canv.width / 2 + zz * (x - player.x + 0.2);
-                let yy = canv.height / 2 + zz * (y - player.y + 0.2);
-                ctx.fillRect(xx, yy, zz * 0.6, zz * 0.6);
-            } else if ((godMode ? true : mag <= flashpower) && map[x][y].isDanger) {
-                if (Math.floor(player.x) === x && Math.floor(player.y) === y) {
-                    map[x][y].isDanger = false;
-                    coins++;
-                    UpdateCounters();
+            } else {
+                if (map[x][y].isSeen) {
+                    ctx.fillStyle = colors.marker;
+                    let xx = canv.width / 2 + zz * (x - player.x + 0.2);
+                    let yy = canv.height / 2 + zz * (y - player.y + 0.2);
+                    ctx.fillRect(xx, yy, zz * 0.6, zz * 0.6);
+                } else if ((godMode ? true : mag <= flashpower) && map[x][y].isDanger) {
+                    if (Math.floor(player.x) === x && Math.floor(player.y) === y) {
+                        map[x][y].isDanger = false;
+                        coins++;
+                        UpdateCounters();
+                    }
+                    ctx.fillStyle = colors.coin;
+                    let xx = canv.width / 2 + zz * (x - player.x + 0.3);
+                    let yy = canv.height / 2 + zz * (y - player.y + 0.3);
+                    let ss = zz * 0.4;
+                    ctx.fillRect(xx, yy, ss, ss);
                 }
-                ctx.fillStyle = colors.coin;
-                let xx = canv.width / 2 + zz * (x - player.x + 0.3);
-                let yy = canv.height / 2 + zz * (y - player.y + 0.3);
-                let ss = zz * 0.4;
-                ctx.fillRect(xx, yy, ss, ss);
+                if ((map[x][y].toGoalVisible || godMode) && map[x][y].toGoal !== undefined) {
+                    ctx.fillStyle = colors.path;
+
+                    let xx = canv.width / 2 + zz * (Lerp(x, map[x][y].toGoal.x, time / drawPathInterval % 1) - player.x + 0.35);
+                    let yy = canv.height / 2 + zz * (Lerp(y, map[x][y].toGoal.y, time / drawPathInterval % 1) - player.y + 0.35);
+                    ctx.fillRect(xx, yy, zz * 0.3, zz * 0.3);
+
+                    xx = canv.width / 2 + zz * (Lerp(x, map[x][y].toGoal.x, (time / drawPathInterval + 0.5) % 1) - player.x + 0.35);
+                    yy = canv.height / 2 + zz * (Lerp(y, map[x][y].toGoal.y, (time / drawPathInterval + 0.5) % 1) - player.y + 0.35);
+                    ctx.fillRect(xx, yy, zz * 0.3, zz * 0.3);
+                }
             }
         }
     }
-    ctx.fillStyle = colors.path;
-    if (drawPath) {
+
+    /*if (drawPath) {
         for (let i = 0; i < truePath.length - 1; i++) {
             let mag = godMode ? 0 : Math.sqrt((player.x - 0.5 - truePath[i].x) ** 2 + (player.y - 0.5 - truePath[i].y) ** 2);
             if (mag < flashpower) {
@@ -385,53 +424,79 @@ function DrawNormal(time) {
             let yy = canv.height / 2 + zz * (Lerp(truePath[i].y, truePath[i + 1].y, time / drawPathInterval % 1) - player.y + 0.35);
             ctx.fillRect(xx, yy, zz * 0.3, zz * 0.3);
         }
-    }
+    }*/
 }
 
 function Loop(time) {
-    let deltaTime = time - lastUpd;
-    ctx.fillStyle = colors.background;
-    ctx.fillRect(0, 0, canv.width, canv.height);
+    try {
+        let deltaTime = time - lastUpd;
+        ctx.fillStyle = colors.background;
+        ctx.fillRect(0, 0, canv.width, canv.height);
 
-    MovePlayer(deltaTime);
+        MovePlayer(deltaTime);
 
-    if (minimapMode) {
-        DrawMinimap(time);
-    } else {
-        DrawNormal(time);
-    }
+        if (autoMarker.enable && (autoMarker.lastX !== Math.round(player.x) || autoMarker.lastY !== Math.round(player.y))) {
+            autoMarker.lastX = Math.round(player.x);
+            autoMarker.lastY = Math.round(player.y);
+            let maxX = Math.min(Math.round(autoMarker.lastX + flashpower), mapW);
+            let maxY = Math.min(Math.round(autoMarker.lastY + flashpower), mapH);
+            let minX = Math.max(Math.round(autoMarker.lastX - flashpower), 0);
+            let minY = Math.max(Math.round(autoMarker.lastY - flashpower), 0);
+            for (let x = minX; x < maxX; x++) {
+                for (let y = minY; y < maxY; y++) {
+                    if (!map[x][y].isWall && !map[x][y].isSeen) {
+                        let wallsAround = 0;
+                        if (x + 1 < mapW && map[x + 1][y].isSeen) wallsAround++;
+                        if (x - 1 >= 0 && map[x - 1][y].isSeen) wallsAround++;
+                        if (y + 1 < mapH && map[x][y + 1].isSeen) wallsAround++;
+                        if (y - 1 >= 0 && map[x][y - 1].isSeen) wallsAround++;
+                        if (wallsAround === 3)
+                            map[x][y].isSeen = true;
+                    }
+                }
+            }
+        }
 
-    if (cursorHold) {
-        ctx.strokeStyle = colors.playerVelocity;
+        if (minimapMode) {
+            DrawMinimap(time);
+        } else {
+            DrawNormal(time);
+        }
+
+        if (cursorHold) {
+            ctx.strokeStyle = colors.playerVelocity;
+            ctx.beginPath();
+            ctx.moveTo(canv.width / 2, canv.height / 2);
+            ctx.lineTo(UnLerp(-1, 1, player.vx) * canvasSizes.w, UnLerp(-1, 1, player.vy) * canvasSizes.h);
+            ctx.lineWidth = 5;
+            ctx.stroke();
+        }
+
+        ctx.lineWidth = 1;
+        ctx.fillStyle = godMode ? colors.playerGodMode : (coins >= shopCosts.extraLive) ? colors.playerExtraLive : colors.player;
+        ctx.strokeStyle = colors.playerBorderLine;
         ctx.beginPath();
-        ctx.moveTo(canv.width / 2, canv.height / 2);
-        ctx.lineTo(UnLerp(-1, 1, player.vx) * canvasSizes.w, UnLerp(-1, 1, player.vy) * canvasSizes.h);
-        ctx.lineWidth = 5;
+        let xx = 0;
+        let yy = 0;
+        if (minimapMode) {
+            xx = zz * player.x;
+            yy = zz * player.y;
+        } else {
+            xx = canv.width / 2;
+            yy = canv.height / 2;
+        }
+        ctx.arc(xx, yy, zz * 0.4, 0, 2 * Math.PI, true);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(xx, yy, zz * 0.4, 0, 2 * Math.PI, true);
         ctx.stroke();
+        ctx.strokeStyle = colors.flashLine;
+        ctx.beginPath();
+        ctx.arc(xx, yy, zz * flashpower, 0, 2 * Math.PI, true);
+        ctx.stroke();
+    } catch (error) {
+        alert(`${error.name}: ${error.message}\n${error.stack}`);
     }
-
-    ctx.lineWidth = 1;
-    ctx.fillStyle = godMode ? colors.playerGodMode : (coins >= shopCosts.extraLive) ? colors.playerExtraLive : colors.player;
-    ctx.strokeStyle = colors.playerBorderLine;
-    ctx.beginPath();
-    let xx = 0;
-    let yy = 0;
-    if (minimapMode) {
-        xx = zz * player.x;
-        yy = zz * player.y;
-    } else {
-        xx = canv.width / 2;
-        yy = canv.height / 2;
-    }
-    ctx.arc(xx, yy, zz * 0.4, 0, 2 * Math.PI, true);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(xx, yy, zz * 0.4, 0, 2 * Math.PI, true);
-    ctx.stroke();
-    ctx.strokeStyle = colors.flashLine;
-    ctx.beginPath();
-    ctx.arc(xx, yy, zz * flashpower, 0, 2 * Math.PI, true);
-    ctx.stroke();
     lastUpd = time;
     requestAnimationFrame(Loop);
 }
@@ -475,7 +540,8 @@ function GenMap(width, height, maze, walls, cp) {
                 isWall: true,
                 color: rc(x / width, y / height),
                 isDanger: Rand(0, 3) === 0,
-                isSeen: false
+                isSeen: false,
+                toGoalVisible: false
             };
         }
     }
@@ -531,46 +597,30 @@ function GenMap(width, height, maze, walls, cp) {
     return maze;
 }
 
-function Makeway(history, x, y, data, fx) {
-    history.push({x: x, y: y});
-    if (fx.x === x && fx.y === y) {
-        return history;
+function Makeway2(x, y, map, fromDirection) {
+    if (fromDirection === undefined) {
+        map[x][y].toGoal = {x, y};
+    } else {
+        map[x][y].toGoal = fromDirection;
     }
-    let t = undefined;
-    if (x < mapW - 2 && data[x + 1][y]) {
-        data[x + 1][y] = false;
-        let tmp = history.slice();
-        tmp.push({x: x + 1, y: y});
-        t = Makeway(tmp, x + 2, y, data, fx);
+
+    if (x + 2 < mapW && !map[x + 1][y].isWall && map[x + 2][y].toGoal === undefined) {
+        //map[x + 1][y].toGoal = {x, y};
+        map = Makeway2(x + 2, y, map, {x: x, y});
     }
-    if (t !== undefined) {
-        return t;
+    if (x - 2 > 0 && !map[x - 1][y].isWall && map[x - 2][y].toGoal === undefined) {
+        //map[x - 1][y].toGoal = {x, y};
+        map = Makeway2(x - 2, y, map, {x: x, y});
     }
-    if (x > 1 && data[x - 1][y]) {
-        data[x - 1][y] = false;
-        let tmp = history.slice();
-        tmp.push({x: x - 1, y: y});
-        t = Makeway(tmp, x - 2, y, data, fx);
+    if (y + 2 < mapH && !map[x][y + 1].isWall && map[x][y + 2].toGoal === undefined) {
+        //map[x][y + 1].toGoal = {x, y};
+        map = Makeway2(x, y + 2, map, {x, y: y});
     }
-    if (t !== undefined) {
-        return t;
+    if (y - 2 > 0 && !map[x][y - 1].isWall && map[x][y - 2].toGoal === undefined) {
+        //map[x][y - 1].toGoal = {x, y};
+        map = Makeway2(x, y - 2, map, {x, y: y});
     }
-    if (y < mapH - 2 && data[x][y + 1]) {
-        data[x][y + 1] = false;
-        let tmp = history.slice();
-        tmp.push({x: x, y: y + 1});
-        t = Makeway(tmp, x, y + 2, data, fx);
-    }
-    if (t !== undefined) {
-        return t;
-    }
-    if (y > 1 && data[x][y - 1]) {
-        data[x][y - 1] = false;
-        let tmp = history.slice();
-        tmp.push({x: x, y: y - 1});
-        t = Makeway(tmp, x, y - 2, data, fx);
-    }
-    return t;
+    return map;
 }
 
 function Vibrate(pattern) {
@@ -584,8 +634,8 @@ function UpdateCursorPos(cursor, press) {
     if (press || (press === undefined && cursorHold === true)) {
         cursorHold = true;
         let box = canv.getBoundingClientRect();
-        let x = Lerp(-1, 1, UnLerp(box.left, box.right, event.clientX));
-        let y = Lerp(-1, 1, UnLerp(box.top, box.bottom, event.clientY));
+        let x = Lerp(-1, 1, UnLerp(box.left, box.right, cursor.clientX));
+        let y = Lerp(-1, 1, UnLerp(box.top, box.bottom, cursor.clientY));
         let mag = Math.hypot(x, y);
         let max = Math.max(Math.abs(x), Math.abs(y));
         player.vx = x / mag * max;
